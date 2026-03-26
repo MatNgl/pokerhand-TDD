@@ -55,8 +55,8 @@ const type_combinaison = [
     { name : 'brelan', value: '4' }, // X
     { name : 'suite', value: '5' }, //X
     { name : 'couleur', value: '6' }, //X
-    { name : 'full', value: '7' },
-    { name : 'carré', value: '8' },
+    { name : 'full', value: '7' }, //X
+    { name : 'carré', value: '8' }, //X 
     { name : 'quinte flush', value: '9' },
   ];
 
@@ -85,6 +85,7 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     // On cherche les combinaisons
     const carre = getCarre(hand);
     const couleur = getCouleur(hand);
+    const full = getFull(hand);
     const suite = getSuite(hand);
     const brelan = getBrelan(hand);
     const doublePair = getDoublePair(hand);
@@ -93,7 +94,11 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     if (carre) {
       currentCategory = 8; // 'carré'
       currentRankValue = getCardValue(carre[0].card);
-    } else if (couleur) {
+    } 
+    else if (full) {
+      currentCategory = 7; 
+      currentRankValue = getCardValue(full[0].card);
+    }else if (couleur) {
       currentCategory = 6; // 'couleur'
       currentRankValue = getCardValue(couleur[0].card);
     } else if (suite) {
@@ -229,6 +234,22 @@ function getSuite(hand: Card[]): Card[] | null {
   return null;
 }
 
+
+function getFull(hand: Card[]): Card[] | null {
+  const groups = Array.from(groupByRank(hand).values())
+    .sort((a, b) => getCardValue(b[0].card) - getCardValue(a[0].card));
+
+  // Chercher le meilleur brelan 
+  const bestBrelan = groups.find(g => g.length >= 3);
+  if (!bestBrelan) return null;
+
+  // Chercher la meilleure paire
+  const bestPaire = groups.find(g => g !== bestBrelan && g.length >= 2);
+  if (!bestPaire) return null;
+
+  // Retourner les 5 cartes 
+  return [...bestBrelan.slice(0, 3), ...bestPaire.slice(0, 2)];
+}
 
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
@@ -384,5 +405,26 @@ describe("Texas Hold'em", () => {
     const best = findBestHand(playersStraight, boardStraight);
     expect(best?.id).to.equal('Suite 7-Valet');
   });
-});
+  it("should detect a Full House (3 of a kind + 2 of a kind)", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'As', signe: 'CA' }, { card: 'As', signe: 'P' },
+      { card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'T' },
+      { card: '2', signe: 'P' }, { card: '5', signe: 'T' }
+    ];
+    const result = getFull(hand);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('As');
+    expect(result![4].card).to.equal('Roi'); 
+  });
 
+  it("should choose the highest triple as the main part of the full ", () => {
+    const handWithTwoTriples: Card[] = [
+      { card: '8', signe: 'T' }, { card: '8', signe: 'CA' }, { card: '8', signe: 'P' },
+      { card: 'Valet', signe: 'C' }, { card: 'Valet', signe: 'T' }, { card: 'Valet', signe: 'P' },
+      { card: '4', signe: 'C' }
+    ];
+    const result = getFull(handWithTwoTriples);
+    expect(getCardValue(result![0].card)).to.equal(11); 
+    expect(getCardValue(result![4].card)).to.equal(8);  
+  });
+});
