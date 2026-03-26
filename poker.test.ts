@@ -56,16 +56,31 @@ const cards = [
 // }
 
 
-// function getPair(cards : Card[]):{
+function getPair(hand: Card[]): Card[] | null {
+  const seen: Record<string, Card[]> = {};
 
-// }
+  for (const card of hand) {
+    if (!seen[card.card]) {
+      seen[card.card] = [];
+    }
+    seen[card.card].push(card);
+  }
+
+  for (const group of Object.values(seen)) {
+    if (group.length >= 2) {
+      return group.slice(0, 2);
+    }
+  }
+
+  return null;
+}
 
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
 }
 
 describe("Texas Hold'em", () => {
-  it("find a pair", () => {
+  it("should mix player's hand with the board", () => {
     const player = players[0];
     const hand = mixJeuAndBoard(player, board);
     expect(hand).to.deep.equal([
@@ -77,5 +92,27 @@ describe("Texas Hold'em", () => {
       { card: '4', signe: 'C' },
       { card: '9', signe: 'T' }
     ]);
-  })
+  });
+
+  it("should return a pair if it exists", () => {
+    const player = players[0];
+    const hand = mixJeuAndBoard(player, board);
+    const pair = getPair(hand);
+    expect(pair).to.deep.equal([
+      { card: '10', signe: 'T' },
+      { card: '10', signe: 'CA' }
+    ]);
+  });
+
+  it("should return null if no pair exists", () => {
+    const noPairHand: Card[] = [
+      { card: '2', signe: 'P' },
+      { card: '5', signe: 'T' },
+      { card: '7', signe: 'CA' },
+      { card: '9', signe: 'C' },
+      { card: 'J', signe: 'T' }
+    ];
+    const pair = getPair(noPairHand);
+    expect(pair).to.equal(null);
+  });
 });
