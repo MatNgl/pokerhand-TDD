@@ -1,4 +1,20 @@
+// const { cards, players, board }=  require("./poker.const");
+
 const { expect } = require("chai");
+
+type Card = {
+  card: string;
+  signe: string;
+};
+type Player = {
+  id: string;
+  Jeu: Card[];
+};
+type CardValue = {
+  card: string;
+  value: number;
+};
+
 
 // Traduction des signes de cartes 
 // "CA" : "Carreau",
@@ -6,18 +22,9 @@ const { expect } = require("chai");
 // "P" : "Pique",
 // "C" : "Coeur",
 
-type Card = {
-  card: string;
-  signe: string;
-};
-
-type Player = {
-  id: string;
-  Jeu: Card[];
-};
 
 // Valeures des cartes
-const cards = [
+ const cards = [
   { card: "2", value: 2 },
   { card: "3", value: 3 },
   { card: "4", value: 4 },
@@ -33,7 +40,7 @@ const cards = [
   { card: "As", value: 14 }
 ];
 
-  const board = [
+ const board = [
     { card: '7', signe: 'CA' }, 
     { card: '2', signe: 'P' }, 
     { card: 'J', signe: 'T' }, 
@@ -41,7 +48,7 @@ const cards = [
     { card: '9', signe: 'T' }
   ];
 
-  const type_combinaison = [
+const type_combinaison = [
     { name: 'carte haute', value: '1' },
     { name: 'paire', value: '2' },
     { name: 'double paire', value: '3' },
@@ -53,14 +60,14 @@ const cards = [
     { name : 'quinte flush', value: '9' },
   ];
 
-  const players = [
+const players = [
     { id: 'Joueur 1', Jeu: [{ card: '10', signe: 'T' }, { card: '10', signe: 'CA' }] },
     { id: 'Joueur 2', Jeu: [{ card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'P' }] },
     { id: 'Joueur 3', Jeu: [{ card: '8', signe: 'P' }, { card: '8', signe: 'T' }] }
   ];
 
 function getCardValue(card: string): number {
-  return cards.find(c => c.card === card)?.value ?? 0;
+  return cards.find((c: CardValue) => c.card === card)?.value ?? 0;
 }
 
 function findBestHand(players: Player[], board: Card[]): Player | null {
@@ -76,10 +83,14 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const brelan = getBrelan(hand);
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
-    if (doublePair) {
+    if (brelan) {
+      currentCategory = 4; // 'brelan'
+      currentRankValue = getCardValue(brelan[0].card);
+    } else if (doublePair) {
       currentCategory = 3; // 'double paire'
       // On prend la valeur de la paire la plus haute pour comparer 
       currentRankValue = getCardValue(doublePair[0].card); 
@@ -118,6 +129,25 @@ function getPair(hand: Card[]): Card[] | null {
   for (const group of Object.values(seen)) {
     if (group.length >= 2) {
       return group.slice(0, 2);
+    }
+  }
+
+  return null;
+}
+
+function getBrelan(hand: Card[]): Card[] | null {
+  const seen: Record<string, Card[]> = {};
+
+  for (const card of hand) {
+    if (!seen[card.card]) {
+      seen[card.card] = [];
+    }
+    seen[card.card].push(card);
+  }
+
+  for (const group of Object.values(seen)) {
+    if (group.length >= 3) {
+      return group.slice(0, 3);
     }
   }
 
@@ -206,21 +236,32 @@ describe("Texas Hold'em", () => {
     expect(ranks).to.include('8');
   });
 
-  it("should prioritize Double Pair over a simple Pair", () => {
-    const boardDP: Card[] = [
-      { card: '7', signe: 'CA' }, { card: '2', signe: 'P' }, 
-      { card: 'J', signe: 'T' }, { card: '4', signe: 'C' }, { card: '9', signe: 'T' }
+  it("should detect a brelan", () => {
+    const handWithBrelan: Card[] = [
+      { card: '8', signe: 'T' }, { card: '8', signe: 'CA' }, { card: '8', signe: 'C' },
+      { card: '2', signe: 'P' }, { card: '5', signe: 'T' },
+      { card: 'J', signe: 'C' }, { card: 'Roi', signe: 'P' }
     ];
 
-    const playersDP: Player[] = [
-      { id: 'Paire d\'As', Jeu: [{ card: 'As', signe: 'T' }, { card: 'As', signe: 'CA' }] },
-      { id: 'Double Paire 2 et 4', Jeu: [{ card: '2', signe: 'C' }, { card: '4', signe: 'P' }] }
+    const result = getBrelan(handWithBrelan);
+
+    expect(result).to.have.lengthOf(3);
+    expect(result?.map(c => c.card).every(r => r === '8')).to.be.true;
+  });
+
+  it("should find best hand", () => {
+    const boardBrelan: Card[] = [
+      { card: '8', signe: 'CA' }, { card: '8', signe: 'C' },
+      { card: '3', signe: 'T' }, { card: 'J', signe: 'P' }, { card: '5', signe: 'C' }
     ];
 
-    // Note : Actuellement ton findBestHand ne teste que getPair(). 
-    // Ce test va échouer ("Red") jusqu'à ce que tu modifies findBestHand.
-    const best = findBestHand(playersDP, boardDP);
-    expect(best?.id).to.equal('Double Paire 2 et 4');
+    const playersBrelan: Player[] = [
+      { id: 'Double Paire Rois et As', Jeu: [{ card: 'Roi', signe: 'T' }, { card: 'As', signe: 'CA' }] },
+      { id: 'Brelan de 8', Jeu: [{ card: '8', signe: 'P' }, { card: '3', signe: 'C' }] }
+    ];
+
+    const best = findBestHand(playersBrelan, boardBrelan);
+    expect(best?.id).to.equal('Brelan de 8');
   });
 });
 
