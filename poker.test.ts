@@ -291,7 +291,7 @@ describe("Texas Hold'em", () => {
     expect(result![4].card).to.equal('As');
   });
 
-  it("should detect a middle straight (7 to Valet) using board and hole cards", () => {
+  it("should detect a middle straight (7 to Valet)", () => {
     // Board : 7, 8, 9, 2, 4
     const boardStraight: Card[] = [
       { card: '7', signe: 'CA' }, { card: '8', signe: 'P' }, 
