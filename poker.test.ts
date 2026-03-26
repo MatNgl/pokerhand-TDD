@@ -43,7 +43,7 @@ type CardValue = {
  const board = [
     { card: '7', signe: 'CA' }, 
     { card: '2', signe: 'P' }, 
-    { card: 'J', signe: 'T' }, 
+    { card: 'Valet', signe: 'T' }, 
     { card: '4', signe: 'C' }, 
     { card: '9', signe: 'T' }
   ];
@@ -69,18 +69,17 @@ const players = [
 function getCardValue(card: string): number {
   return cards.find((c: CardValue) => c.card === card)?.value ?? 0;
 }
-
-function findBestHand(players: Player[], board: Card[]): Player | null {
-  let bestPlayer: Player | null = null;
-  let bestCategoryValue = 0; 
-  let bestRankValue = -1;    // Valeur de la carte pour le départage
+function findBestHand(players: Player[], board: Card[]): Card[] | null {
+  let bestCards: Card[] | null = null;
+  let bestCategoryValue = 0;
+  let bestRankValue = -1;
 
   for (const player of players) {
     const hand = mixJeuAndBoard(player, board);
     
-    // Initialisation par défaut : Carte Haute
     let currentCategory = 1; 
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
+    let comboCards: Card[] = [];
 
     // On cherche les combinaisons
     const quinteFlush = getQuinteFlush(hand);
@@ -93,55 +92,65 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     const simplePair = getPair(hand);
 
     if (quinteFlush) {
-      currentCategory = 9; // 'quinte flush'
+      currentCategory = 9;
       currentRankValue = getCardValue(quinteFlush[0].card);
-      // Gestion de la roue (5-high quinte flush)
+      comboCards = quinteFlush;
       if (currentRankValue === 14 && getCardValue(quinteFlush[1].card) === 5) {
           currentRankValue = 5;
       }
     } else if (carre) {
-      currentCategory = 8; // 'carré'
+      currentCategory = 8;
       currentRankValue = getCardValue(carre[0].card);
+      comboCards = carre;
     } 
     else if (full) {
       currentCategory = 7; 
       currentRankValue = getCardValue(full[0].card);
-    }else if (couleur) {
-      currentCategory = 6; // 'couleur'
+      comboCards = full;
+    } else if (couleur) {
+      currentCategory = 6;
       currentRankValue = getCardValue(couleur[0].card);
+      comboCards = couleur;
     } else if (suite) {
-      currentCategory = 5; // 'suite'
+      currentCategory = 5;
       currentRankValue = getCardValue(suite[0].card); 
-      // Note: Pour la roue (5-high), la valeur de comparaison est 5
+      comboCards = suite;
       if (currentRankValue === 14 && getCardValue(suite[1].card) === 5) {
           currentRankValue = 5;
       }
     } else if (brelan) {
-      currentCategory = 4; // 'brelan'
+      currentCategory = 4;
       currentRankValue = getCardValue(brelan[0].card);
+      comboCards = brelan;
     } else if (doublePair) {
       currentCategory = 3;
       currentRankValue = getCardValue(doublePair[0].card);
+      comboCards = doublePair;
     }
     else if (simplePair) {
-      currentCategory = 2; // 'paire'
+      currentCategory = 2;
       currentRankValue = getCardValue(simplePair[0].card);
+      comboCards = simplePair;
     }
 
-    //Logique de comparaison pour déterminer le "Best Player"
-    // La catégorie la plus haute gagne 
+    // 5 meilleures cartes
+    const leftBestCards = hand
+      .filter(c => !comboCards.includes(c))
+      .sort((a, b) => getCardValue(b.card) - getCardValue(a.card));
+    const currentBestCards = [...comboCards, ...leftBestCards].slice(0, 5);
+
     if (currentCategory > bestCategoryValue) {
       bestCategoryValue = currentCategory;
       bestRankValue = currentRankValue;
-      bestPlayer = player;
+      bestCards = currentBestCards;
     } 
     else if (currentCategory === bestCategoryValue && currentRankValue > bestRankValue) {
       bestRankValue = currentRankValue;
-      bestPlayer = player;
+      bestCards = currentBestCards;
     }
   }
 
-  return bestPlayer;
+  return bestCards;
 }
 
 
@@ -287,7 +296,7 @@ describe("Texas Hold'em", () => {
       { card: '10', signe: 'CA' },
       { card: '7', signe: 'CA' },
       { card: '2', signe: 'P' },
-      { card: 'J', signe: 'T' },
+      { card: 'Valet', signe: 'T' },
       { card: '4', signe: 'C' },
       { card: '9', signe: 'T' }
     ]);
@@ -297,7 +306,7 @@ describe("Texas Hold'em", () => {
     const best = findBestHand(players, board);
     expect(best).to.deep.equal([
       { card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'P' },
-      { card: 'J', signe: 'T' }, { card: '9', signe: 'T' }, { card: '7', signe: 'CA' }
+      { card: 'Valet', signe: 'T' }, { card: '9', signe: 'T' }, { card: '7', signe: 'CA' }
     ]);
   });
 
@@ -308,13 +317,13 @@ describe("Texas Hold'em", () => {
     const emptyBoard: Card[] = [
       { card: '7', signe: 'CA' },
       { card: '9', signe: 'P' },
-      { card: 'J', signe: 'T' },
+      { card: 'Valet', signe: 'T' },
       { card: '3', signe: 'C' },
       { card: '6', signe: 'T' }
     ];
     const best = findBestHand(noPairPlayers, emptyBoard);
     expect(best).to.deep.equal([
-      { card: 'J', signe: 'T' }, { card: '9', signe: 'P' },
+      { card: 'Valet', signe: 'T' }, { card: '9', signe: 'P' },
       { card: '7', signe: 'CA' }, { card: '6', signe: 'T' }, { card: '5', signe: 'C' }
     ]);
   });
@@ -415,7 +424,7 @@ describe("Texas Hold'em", () => {
 
   it("should prioritize Couleur over Suite", () => {
     const boardCouleur: Card[] = [
-      { card: '7', signe: 'T' }, { card: '9', signe: 'T' },
+      { card: '7', signe: 'T' }, { card: 'Valet', signe: 'T' },
       { card: 'J', signe: 'T' }, { card: '4', signe: 'T' }, { card: '6', signe: 'T' }
     ];
     const playersCouleur: Player[] = [
@@ -424,8 +433,8 @@ describe("Texas Hold'em", () => {
     ];
     const best = findBestHand(playersCouleur, boardCouleur);
     expect(best).to.deep.equal([
-      { card: 'As', signe: 'T' }, { card: 'J', signe: 'T' },
-      { card: '9', signe: 'T' }, { card: '7', signe: 'T' }, { card: '6', signe: 'T' }
+      { card: 'As', signe: 'T' }, { card: 'Valet', signe: 'T' },
+      { card: '7', signe: 'T' }, { card: '6', signe: 'T' }, { card: '4', signe: 'T' }
     ]);
   });
 
