@@ -83,6 +83,7 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const quinteFlush = getQuinteFlush(hand);
     const carre = getCarre(hand);
     const couleur = getCouleur(hand);
     const full = getFull(hand);
@@ -91,7 +92,14 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
-    if (carre) {
+    if (quinteFlush) {
+      currentCategory = 9; // 'quinte flush'
+      currentRankValue = getCardValue(quinteFlush[0].card);
+      // Gestion de la roue (5-high quinte flush)
+      if (currentRankValue === 14 && getCardValue(quinteFlush[1].card) === 5) {
+          currentRankValue = 5;
+      }
+    } else if (carre) {
       currentCategory = 8; // 'carré'
       currentRankValue = getCardValue(carre[0].card);
     } 
@@ -254,6 +262,21 @@ function getFull(hand: Card[]): Card[] | null {
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
 }
+
+
+function getQuinteFlush(hand: Card[]): Card[] | null {
+  // On cherche d'abord s'il y a une couleur (Flush)
+  const couleurCards = getCouleur(hand);
+  if (!couleurCards) return null;
+
+  // On récupère TOUTES les cartes de la même couleur que le Flush trouvé
+  const laCouleur = couleurCards[0].signe;
+  const sameSigneCards = hand.filter(c => c.signe === laCouleur);
+
+  // On vérifie si ces cartes spécifiques forment une suite
+  return getSuite(sameSigneCards);
+}
+
 
 describe("Texas Hold'em", () => {
   it("should mix player's hand with the board", () => {
@@ -426,5 +449,29 @@ describe("Texas Hold'em", () => {
     const result = getFull(handWithTwoTriples);
     expect(getCardValue(result![0].card)).to.equal(11); 
     expect(getCardValue(result![4].card)).to.equal(8);  
+  });
+
+  it("should detect a Royal Flush (10-A same suit)", () => {
+    const handRoyal: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'Roi', signe: 'T' },
+      { card: 'Dame', signe: 'T' }, { card: 'Valet', signe: 'T' },
+      { card: '10', signe: 'T' }, { card: '2', signe: 'P' }, { card: '3', signe: 'C' }
+    ];
+    const result = getQuinteFlush(handRoyal);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('As');
+    expect(result![0].signe).to.equal('T');
+  });
+
+  it("should detect a flush with low numbers", () => {
+    const handSteelWheel: Card[] = [
+      { card: 'As', signe: 'CA' }, { card: '2', signe: 'CA' },
+      { card: '3', signe: 'CA' }, { card: '4', signe: 'CA' },
+      { card: '5', signe: 'CA' }, { card: 'Roi', signe: 'P' }, { card: '9', signe: 'C' }
+    ];
+    const result = getQuinteFlush(handSteelWheel);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('5'); // Ordre 5-4-3-2-A
+    expect(result![0].signe).to.equal('CA');
   });
 });
