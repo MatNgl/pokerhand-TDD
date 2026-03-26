@@ -43,17 +43,33 @@ const cards = [
 
   const players = [
     { id: 'Joueur 1', Jeu: [{ card: '10', signe: 'T' }, { card: '10', signe: 'CA' }] },
-    { id: 'Joueur 2', Jeu: [{ card: 'K', signe: 'C' }, { card: 'K', signe: 'P' }] },
+    { id: 'Joueur 2', Jeu: [{ card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'P' }] },
     { id: 'Joueur 3', Jeu: [{ card: '8', signe: 'P' }, { card: '8', signe: 'T' }] }
   ];
 
-// function findBestHand(players: any, board: any) {
-//   for (let player of players) {
-//     const hand = mixJeuAndBoard(player.Jeu, board);
-    
-//     player.bestHand = bestHand;
-//   }
-// }
+function getCardValue(card: string): number {
+  return cards.find(c => c.card === card)?.value ?? 0;
+}
+
+function findBestHand(players: Player[], board: Card[]): Player | null {
+  let bestPlayer: Player | null = null;
+  let bestValue = -1;
+
+  for (const player of players) {
+    const hand = mixJeuAndBoard(player, board);
+    const pair = getPair(hand);
+    // Trouver une paire
+    if (pair) {
+      const value = getCardValue(pair[0].card);
+      if (value > bestValue) {
+        bestValue = value;
+        bestPlayer = player;
+      }
+    }
+  }
+
+  return bestPlayer;
+}
 
 
 function getPair(hand: Card[]): Card[] | null {
@@ -94,25 +110,23 @@ describe("Texas Hold'em", () => {
     ]);
   });
 
-  it("should return a pair if it exists", () => {
-    const player = players[0];
-    const hand = mixJeuAndBoard(player, board);
-    const pair = getPair(hand);
-    expect(pair).to.deep.equal([
-      { card: '10', signe: 'T' },
-      { card: '10', signe: 'CA' }
-    ]);
+  it("should find the player with the best pair", () => {
+    const best = findBestHand(players, board);
+    expect(best?.id).to.equal('Joueur 2');
   });
 
-  it("should return null if no pair exists", () => {
-    const noPairHand: Card[] = [
-      { card: '2', signe: 'P' },
-      { card: '5', signe: 'T' },
-      { card: '7', signe: 'CA' },
-      { card: '9', signe: 'C' },
-      { card: 'J', signe: 'T' }
+  it("should return null", () => {
+    const noPairPlayers: Player[] = [
+      { id: 'P1', Jeu: [{ card: '2', signe: 'T' }, { card: '5', signe: 'C' }] }
     ];
-    const pair = getPair(noPairHand);
-    expect(pair).to.equal(null);
+    const emptyBoard: Card[] = [
+      { card: '7', signe: 'CA' },
+      { card: '9', signe: 'P' },
+      { card: 'J', signe: 'T' },
+      { card: '3', signe: 'C' },
+      { card: '6', signe: 'T' }
+    ];
+    const best = findBestHand(noPairPlayers, emptyBoard);
+    expect(best).to.equal(null);
   });
 });
