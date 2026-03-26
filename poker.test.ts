@@ -463,7 +463,7 @@ describe("Texas Hold'em", () => {
     expect(result![0].signe).to.equal('T');
   });
 
-  it("should detect a Steel Wheel (Ace-low straight flush)", () => {
+  it("should detect a flush with low numbers", () => {
     const handSteelWheel: Card[] = [
       { card: 'As', signe: 'CA' }, { card: '2', signe: 'CA' },
       { card: '3', signe: 'CA' }, { card: '4', signe: 'CA' },
