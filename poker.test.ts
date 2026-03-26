@@ -49,10 +49,10 @@ type CardValue = {
   ];
 
 const type_combinaison = [
-    { name: 'carte haute', value: '1' },
-    { name: 'paire', value: '2' },
-    { name: 'double paire', value: '3' },
-    { name : 'brelan', value: '4' },
+    { name: 'carte haute', value: '1' }, //  X
+    { name: 'paire', value: '2' }, // X
+    { name: 'double paire', value: '3' }, // X
+    { name : 'brelan', value: '4' }, // X
     { name : 'suite', value: '5' },
     { name : 'couleur', value: '6' },
     { name : 'full', value: '7' },
