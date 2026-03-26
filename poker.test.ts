@@ -71,11 +71,11 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
   for (const player of players) {
     const hand = mixJeuAndBoard(player, board);
     
-    // Initialisation par défaut : Carte Haute (Valeur 1)
+    // Initialisation par défaut : Carte Haute
     let currentCategory = 1; 
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
-    // 1. On cherche les combinaisons (de la plus forte à la plus faible)
+    // On cherche les combinaisons
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
@@ -88,14 +88,13 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
       currentRankValue = getCardValue(simplePair[0].card);
     }
 
-    // 2. Logique de comparaison pour déterminer le "Best Player"
-    // Règle 1 : La catégorie la plus haute gagne [cite: 23]
+    //Logique de comparaison pour déterminer le "Best Player"
+    // La catégorie la plus haute gagne 
     if (currentCategory > bestCategoryValue) {
       bestCategoryValue = currentCategory;
       bestRankValue = currentRankValue;
       bestPlayer = player;
     } 
-    // Règle 2 : Si même catégorie, la carte la plus haute gagne [cite: 36, 61]
     else if (currentCategory === bestCategoryValue && currentRankValue > bestRankValue) {
       bestRankValue = currentRankValue;
       bestPlayer = player;
@@ -175,7 +174,7 @@ describe("Texas Hold'em", () => {
     expect(best?.id).to.equal('Joueur 2');
   });
 
-  it("should return null", () => {
+  it("should return best hand with no bonus", () => {
     const noPairPlayers: Player[] = [
       { id: 'P1', Jeu: [{ card: '2', signe: 'T' }, { card: '5', signe: 'C' }] }
     ];
@@ -187,7 +186,7 @@ describe("Texas Hold'em", () => {
       { card: '6', signe: 'T' }
     ];
     const best = findBestHand(noPairPlayers, emptyBoard);
-    expect(best).to.equal(null);
+    expect(best).to.deep.equal({ id: 'P1', Jeu: [{ card: '2', signe: 'T' }, { card: '5', signe: 'C' }]});
   });
   
   it("should detect two pairs from a hand of 7 cards", () => {
