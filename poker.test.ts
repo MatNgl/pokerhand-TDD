@@ -65,18 +65,40 @@ function getCardValue(card: string): number {
 
 function findBestHand(players: Player[], board: Card[]): Player | null {
   let bestPlayer: Player | null = null;
-  let bestValue = -1;
+  let bestCategoryValue = 0; // Correspond à la 'value' dans type_combinaison
+  let bestRankValue = -1;    // Valeur de la carte pour le départage
 
   for (const player of players) {
     const hand = mixJeuAndBoard(player, board);
-    const pair = getPair(hand);
-    // Trouver une paire
-    if (pair) {
-      const value = getCardValue(pair[0].card);
-      if (value > bestValue) {
-        bestValue = value;
-        bestPlayer = player;
-      }
+    
+    // Initialisation par défaut : Carte Haute (Valeur 1)
+    let currentCategory = 1; 
+    let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
+
+    // 1. On cherche les combinaisons (de la plus forte à la plus faible)
+    const doublePair = getDoublePair(hand);
+    const simplePair = getPair(hand);
+
+    if (doublePair) {
+      currentCategory = 3; // 'double paire'
+      // On prend la valeur de la paire la plus haute pour comparer 
+      currentRankValue = getCardValue(doublePair[0].card); 
+    } else if (simplePair) {
+      currentCategory = 2; // 'paire'
+      currentRankValue = getCardValue(simplePair[0].card);
+    }
+
+    // 2. Logique de comparaison pour déterminer le "Best Player"
+    // Règle 1 : La catégorie la plus haute gagne [cite: 23]
+    if (currentCategory > bestCategoryValue) {
+      bestCategoryValue = currentCategory;
+      bestRankValue = currentRankValue;
+      bestPlayer = player;
+    } 
+    // Règle 2 : Si même catégorie, la carte la plus haute gagne [cite: 36, 61]
+    else if (currentCategory === bestCategoryValue && currentRankValue > bestRankValue) {
+      bestRankValue = currentRankValue;
+      bestPlayer = player;
     }
   }
 
