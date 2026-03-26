@@ -76,9 +76,21 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const suite = getSuite(hand);
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
+    if (suite) {
+      currentCategory = 5; // 'suite'
+      currentRankValue = getCardValue(suite[0].card); 
+      // Note: Pour la roue (5-high), la valeur de comparaison est 5
+      if (currentRankValue === 14 && getCardValue(suite[1].card) === 5) {
+          currentRankValue = 5;
+      }
+    } else if (doublePair) {
+      currentCategory = 3;
+      currentRankValue = getCardValue(doublePair[0].card);
+    }
     if (doublePair) {
       currentCategory = 3; // 'double paire'
       // On prend la valeur de la paire la plus haute pour comparer 
@@ -150,6 +162,40 @@ const seen: Record<string, Card[]> = {};
   return null;
 }
 
+
+function getSuite(hand: Card[]): Card[] | null {
+  // 1. Récupérer les valeurs uniques et les trier par ordre décroissant
+  const uniqueCards = Array.from(new Set(hand.map(c => c.card)))
+    .map(cardStr => ({
+      card: cardStr,
+      value: getCardValue(cardStr)
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  //Cas spécial : La "Roue" (5-4-3-2-A)
+  const values = uniqueCards.map(c => c.value);
+  const isWheel = values.includes(14) && values.includes(5) && 
+                  values.includes(4) && values.includes(3) && values.includes(2);
+
+  // Recherche d'une séquence de 5 cartes
+  for (let i = 0; i <= uniqueCards.length - 5; i++) {
+    const window = uniqueCards.slice(i, i + 5);
+    if (window[0].value - window[4].value === 4) {
+
+      return window.map(w => hand.find(h => h.card === w.card)!);
+    }
+  }
+
+  // Si c'est une roue, on construit la main manuellement (5-4-3-2-A)
+  if (isWheel) {
+    const wheelRanks = ['5', '4', '3', '2', 'As'];
+    return wheelRanks.map(rank => hand.find(h => h.card === rank)!);
+  }
+
+  return null;
+}
+
+
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
 }
@@ -217,10 +263,55 @@ describe("Texas Hold'em", () => {
       { id: 'Double Paire 2 et 4', Jeu: [{ card: '2', signe: 'C' }, { card: '4', signe: 'P' }] }
     ];
 
-    // Note : Actuellement ton findBestHand ne teste que getPair(). 
-    // Ce test va échouer ("Red") jusqu'à ce que tu modifies findBestHand.
     const best = findBestHand(playersDP, boardDP);
     expect(best?.id).to.equal('Double Paire 2 et 4');
+  });
+
+  it("should detect a standard Ace-high straight", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'Roi', signe: 'CA' },
+      { card: 'Dame', signe: 'P' }, { card: 'Valet', signe: 'C' },
+      { card: '10', signe: 'T' }, { card: '2', signe: 'P' }, { card: '3', signe: 'C' }
+    ];
+    const result = getSuite(hand);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('As');
+  });
+
+  it("should detect an Ace-low straight (the wheel: 5-4-3-2-A)", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: '2', signe: 'CA' },
+      { card: '3', signe: 'P' }, { card: '4', signe: 'C' },
+      { card: '5', signe: 'T' }, { card: 'Roi', signe: 'P' }, { card: '9', signe: 'C' }
+    ];
+    const result = getSuite(hand);
+    expect(result).to.have.lengthOf(5);
+    // Selon l'exigence d'ordre, la roue doit être ordonnée 5,4,3,2,A
+    expect(result![0].card).to.equal('5');
+    expect(result![4].card).to.equal('As');
+  });
+
+  it("should detect a middle straight (7 to Valet) using board and hole cards", () => {
+    // Board : 7, 8, 9, 2, 4
+    const boardStraight: Card[] = [
+      { card: '7', signe: 'CA' }, { card: '8', signe: 'P' }, 
+      { card: '9', signe: 'T' }, { card: '2', signe: 'C' }, { card: '4', signe: 'T' }
+    ];
+
+    const playerStraight: Player = { 
+      id: 'Joueur Suite 7-V', 
+      Jeu: [{ card: '10', signe: 'C' }, { card: 'Valet', signe: 'P' }] 
+    };
+
+    const hand = mixJeuAndBoard(playerStraight, boardStraight);
+    const result = getSuite(hand);
+
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('Valet');
+    expect(result![4].card).to.equal('7');
+    
+    const best = findBestHand([playerStraight], boardStraight);
+    expect(best?.id).to.equal('Joueur Suite 7-V');
   });
 });
 
