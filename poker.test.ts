@@ -54,7 +54,7 @@ const type_combinaison = [
     { name: 'double paire', value: '3' }, // X
     { name : 'brelan', value: '4' }, // X
     { name : 'suite', value: '5' }, //X
-    { name : 'couleur', value: '6' },
+    { name : 'couleur', value: '6' }, //X
     { name : 'full', value: '7' },
     { name : 'carré', value: '8' },
     { name : 'quinte flush', value: '9' },
@@ -83,22 +83,29 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const carre = getCarre(hand);
+    const couleur = getCouleur(hand);
     const suite = getSuite(hand);
     const brelan = getBrelan(hand);
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
-    if (suite) {
+    if (carre) {
+      currentCategory = 8; // 'carré'
+      currentRankValue = getCardValue(carre[0].card);
+    } else if (couleur) {
+      currentCategory = 6; // 'couleur'
+      currentRankValue = getCardValue(couleur[0].card);
+    } else if (suite) {
       currentCategory = 5; // 'suite'
       currentRankValue = getCardValue(suite[0].card); 
       // Note: Pour la roue (5-high), la valeur de comparaison est 5
       if (currentRankValue === 14 && getCardValue(suite[1].card) === 5) {
           currentRankValue = 5;
       }
-      else if (brelan) {
+    } else if (brelan) {
       currentCategory = 4; // 'brelan'
       currentRankValue = getCardValue(brelan[0].card);
-    } 
     } else if (doublePair) {
       currentCategory = 3;
       currentRankValue = getCardValue(doublePair[0].card);
@@ -125,70 +132,70 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
 }
 
 
-function getPair(hand: Card[]): Card[] | null {
-  const seen: Record<string, Card[]> = {};
-
+// Groupe toute les carte en focntion de leur valeur (pour les apirs, brelan, carrés...)
+function groupByRank(hand: Card[]): Map<string, Card[]> {
+  const seen = new Map<string, Card[]>();
   for (const card of hand) {
-    if (!seen[card.card]) {
-      seen[card.card] = [];
+    if (!seen.has(card.card)) {
+      seen.set(card.card, []);
     }
-    seen[card.card].push(card);
+    seen.get(card.card)!.push(card);
   }
+  return seen;
+}
 
-  for (const group of Object.values(seen)) {
-    if (group.length >= 2) {
-      return group.slice(0, 2);
-    }
+function getPair(hand: Card[]): Card[] | null {
+  for (const group of groupByRank(hand).values()) {
+    if (group.length >= 2) return group.slice(0, 2);
   }
-
   return null;
 }
 
 function getBrelan(hand: Card[]): Card[] | null {
-  const seen: Record<string, Card[]> = {};
-
-  for (const card of hand) {
-    if (!seen[card.card]) {
-      seen[card.card] = [];
-    }
-    seen[card.card].push(card);
+  for (const group of groupByRank(hand).values()) {
+    if (group.length >= 3) return group.slice(0, 3);
   }
-
-  for (const group of Object.values(seen)) {
-    if (group.length >= 3) {
-      return group.slice(0, 3);
-    }
-  }
-
   return null;
 }
 
 function getDoublePair(hand: Card[]): Card[] | null {
-const seen: Record<string, Card[]> = {};
+  const allPairs = Array.from(groupByRank(hand).values())
+    .filter(group => group.length >= 2)
+    .sort((a, b) => getCardValue(b[0].card) - getCardValue(a[0].card));
 
-// On groupe par rang 
+  if (allPairs.length >= 2) {
+    return [...allPairs[0].slice(0, 2), ...allPairs[1].slice(0, 2)];
+  }
+  return null;
+}
+
+function getCarre(hand: Card[]): Card[] | null {
+  for (const group of groupByRank(hand).values()) {
+    if (group.length >= 4) return group.slice(0, 4);
+  }
+  return null;
+}
+
+function getCouleur(hand: Card[]): Card[] | null {
+  const bySigne = new Map<string, Card[]>();
+
   for (const card of hand) {
-    if (!seen[card.card]) {
-      seen[card.card] = [];
+    if (!bySigne.has(card.signe)) {
+      bySigne.set(card.signe, []);
     }
-    seen[card.card].push(card);
+    bySigne.get(card.signe)!.push(card);
   }
 
-  // On récypère tous les groupes de 2 cartes ou plus 
-  const allPairs = Object.values(seen).filter(group => group.length >= 2)
-  // On trie par valeur de carte décroissante
-  .sort((a, b) => getCardValue(b[0].card) - getCardValue(a[0].card));
-
-  // IL faut au moins 2 paires distinctes
-  if (allPairs.length >= 2) {
-    const firstPair = allPairs[0].slice(0, 2);
-    const secondPair = allPairs[1].slice(0, 2);
-    return [...firstPair, ...secondPair];
+  for (const group of bySigne.values()) {
+    if (group.length >= 5) {
+      return group
+        .sort((a, b) => getCardValue(b.card) - getCardValue(a.card))
+        .slice(0, 5);
+    }
   }
 
   return null;
 }
-
 
 function getSuite(hand: Card[]): Card[] | null {
   // 1. Récupérer les valeurs uniques et les trier par ordre décroissant
@@ -314,6 +321,55 @@ describe("Texas Hold'em", () => {
     // Selon l'exigence d'ordre, la roue doit être ordonnée 5,4,3,2,A
     expect(result![0].card).to.equal('5');
     expect(result![4].card).to.equal('As');
+  });
+
+  it("should detect a four of a kind (carre)", () => {
+    const handWithCarre: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'As', signe: 'CA' },
+      { card: 'As', signe: 'P' }, { card: 'As', signe: 'C' },
+      { card: '2', signe: 'T' }, { card: '5', signe: 'P' }, { card: 'Roi', signe: 'C' }
+    ];
+    const result = getCarre(handWithCarre);
+    expect(result).to.have.lengthOf(4);
+    expect(result!.every(c => c.card === 'As')).to.be.true;
+  });
+
+  it("should prioritize Carre over Couleur", () => {
+    const boardCarre: Card[] = [
+      { card: 'As', signe: 'CA' }, { card: 'As', signe: 'C' },
+      { card: 'As', signe: 'P' }, { card: '4', signe: 'T' }, { card: '6', signe: 'T' }
+    ];
+    const playersCarre: Player[] = [
+      { id: 'Jean', Jeu: [{ card: '2', signe: 'T' }, { card: '9', signe: 'T' }] },
+      { id: 'Julie', Jeu: [{ card: 'As', signe: 'T' }, { card: 'Roi', signe: 'P' }] }
+    ];
+    const best = findBestHand(playersCarre, boardCarre);
+    expect(best?.id).to.equal('Julie');
+  });
+
+  it("should detect a flush (couleur)", () => {
+    const handWithCouleur: Card[] = [
+      { card: 'As', signe: 'T' }, { card: '9', signe: 'T' },
+      { card: '6', signe: 'T' }, { card: '4', signe: 'T' },
+      { card: '2', signe: 'T' }, { card: 'Roi', signe: 'P' }, { card: '8', signe: 'C' }
+    ];
+    const result = getCouleur(handWithCouleur);
+    expect(result).to.have.lengthOf(5);
+    expect(result!.every(c => c.signe === 'T')).to.be.true;
+    expect(result![0].card).to.equal('As');
+  });
+
+  it("should prioritize Couleur over Suite", () => {
+    const boardCouleur: Card[] = [
+      { card: '7', signe: 'T' }, { card: '9', signe: 'T' },
+      { card: 'J', signe: 'T' }, { card: '4', signe: 'T' }, { card: '6', signe: 'T' }
+    ];
+    const playersCouleur: Player[] = [
+      { id: 'Suite 5-9', Jeu: [{ card: '5', signe: 'P' }, { card: '8', signe: 'C' }] },
+      { id: 'Couleur Trèfle', Jeu: [{ card: 'As', signe: 'T' }, { card: '2', signe: 'P' }] }
+    ];
+    const best = findBestHand(playersCouleur, boardCouleur);
+    expect(best?.id).to.equal('Couleur Trèfle');
   });
 
   it("should find best hand", () => {
