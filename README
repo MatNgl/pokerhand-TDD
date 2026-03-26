@@ -1,0 +1,9 @@
+README - Pokerhand TDD
+
+On a réussi à implémenter toute la logique de détection des combinaisons (de la simple paire à la quinte flush), mais le temps a manqué pour finaliser certains détails du sujet :
+
+Départage profond : 
+Pas de comparaison entre deux personnes ayant une meme combinaison et donc pas de comparaison en cas d'égalité sur les cartes restantes pour connaitre le plus fort
+
+Gestion des égalités : 
+Le programme est conçu pour retourner un seul vainqueur ; il reste à modifier la sortie pour supporter une liste de gagnants en cas d'égalité parfaite
