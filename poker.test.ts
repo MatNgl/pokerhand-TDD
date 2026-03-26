@@ -83,22 +83,27 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const full = getFull(hand);
     const suite = getSuite(hand);
     const brelan = getBrelan(hand);
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
-    if (suite) {
-      currentCategory = 5; // 'suite'
+
+    if (full) {
+      currentCategory = 7; 
+      currentRankValue = getCardValue(full[0].card);
+    } else if (suite) {
+      currentCategory = 5;
       currentRankValue = getCardValue(suite[0].card); 
       // Note: Pour la roue (5-high), la valeur de comparaison est 5
       if (currentRankValue === 14 && getCardValue(suite[1].card) === 5) {
           currentRankValue = 5;
       }
-      else if (brelan) {
+      
+    }else if (brelan) {
       currentCategory = 4; // 'brelan'
       currentRankValue = getCardValue(brelan[0].card);
-    } 
     } else if (doublePair) {
       currentCategory = 3;
       currentRankValue = getCardValue(doublePair[0].card);
@@ -223,6 +228,32 @@ function getSuite(hand: Card[]): Card[] | null {
 }
 
 
+function getFull(hand: Card[]): Card[] | null {
+  const counts: Record<string, Card[]> = {};
+
+  // Grouper les cartes par leur rang 
+  for (const card of hand) {
+    if (!counts[card.card]) counts[card.card] = [];
+    counts[card.card].push(card);
+  }
+
+  // Extraire les groupes sous forme de tableau et les trier par valeur décroissante
+  const groups = Object.values(counts).sort((a, b) => 
+    getCardValue(b[0].card) - getCardValue(a[0].card)
+  );
+
+  // Chercher le meilleur brelan 
+  const bestBrelan = groups.find(g => g.length >= 3);
+  if (!bestBrelan) return null;
+
+  // Chercher la meilleure paire
+  const bestPaire = groups.find(g => g !== bestBrelan && g.length >= 2);
+  if (!bestPaire) return null;
+
+  // Retourner les 5 cartes 
+  return [...bestBrelan.slice(0, 3), ...bestPaire.slice(0, 2)];
+}
+
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
 }
@@ -328,5 +359,26 @@ describe("Texas Hold'em", () => {
     const best = findBestHand(playersStraight, boardStraight);
     expect(best?.id).to.equal('Suite 7-Valet');
   });
-});
+  it("should detect a Full House (3 of a kind + 2 of a kind)", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'As', signe: 'CA' }, { card: 'As', signe: 'P' },
+      { card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'T' },
+      { card: '2', signe: 'P' }, { card: '5', signe: 'T' }
+    ];
+    const result = getFull(hand);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('As');
+    expect(result![4].card).to.equal('Roi'); 
+  });
 
+  it("should choose the highest triple as the main part of the full ", () => {
+    const handWithTwoTriples: Card[] = [
+      { card: '8', signe: 'T' }, { card: '8', signe: 'CA' }, { card: '8', signe: 'P' },
+      { card: 'Valet', signe: 'C' }, { card: 'Valet', signe: 'T' }, { card: 'Valet', signe: 'P' },
+      { card: '4', signe: 'C' }
+    ];
+    const result = getFull(handWithTwoTriples);
+    expect(getCardValue(result![0].card)).to.equal(11); 
+    expect(getCardValue(result![4].card)).to.equal(8);  
+  });
+});
