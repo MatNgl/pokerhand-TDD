@@ -53,7 +53,7 @@ const type_combinaison = [
     { name: 'paire', value: '2' }, // X
     { name: 'double paire', value: '3' }, // X
     { name : 'brelan', value: '4' }, // X
-    { name : 'suite', value: '5' },
+    { name : 'suite', value: '5' }, //X
     { name : 'couleur', value: '6' },
     { name : 'full', value: '7' },
     { name : 'carré', value: '8' },
@@ -83,18 +83,27 @@ function findBestHand(players: Player[], board: Card[]): Player | null {
     let currentRankValue = Math.max(...hand.map(c => getCardValue(c.card)));
 
     // On cherche les combinaisons
+    const suite = getSuite(hand);
     const brelan = getBrelan(hand);
     const doublePair = getDoublePair(hand);
     const simplePair = getPair(hand);
 
-    if (brelan) {
+    if (suite) {
+      currentCategory = 5; // 'suite'
+      currentRankValue = getCardValue(suite[0].card); 
+      // Note: Pour la roue (5-high), la valeur de comparaison est 5
+      if (currentRankValue === 14 && getCardValue(suite[1].card) === 5) {
+          currentRankValue = 5;
+      }
+      else if (brelan) {
       currentCategory = 4; // 'brelan'
       currentRankValue = getCardValue(brelan[0].card);
+    } 
     } else if (doublePair) {
-      currentCategory = 3; // 'double paire'
-      // On prend la valeur de la paire la plus haute pour comparer 
-      currentRankValue = getCardValue(doublePair[0].card); 
-    } else if (simplePair) {
+      currentCategory = 3;
+      currentRankValue = getCardValue(doublePair[0].card);
+    }
+    else if (simplePair) {
       currentCategory = 2; // 'paire'
       currentRankValue = getCardValue(simplePair[0].card);
     }
@@ -180,6 +189,40 @@ const seen: Record<string, Card[]> = {};
   return null;
 }
 
+
+function getSuite(hand: Card[]): Card[] | null {
+  // 1. Récupérer les valeurs uniques et les trier par ordre décroissant
+  const uniqueCards = Array.from(new Set(hand.map(c => c.card)))
+    .map(cardStr => ({
+      card: cardStr,
+      value: getCardValue(cardStr)
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  //Cas spécial : La "Roue" (5-4-3-2-A)
+  const values = uniqueCards.map(c => c.value);
+  const isWheel = values.includes(14) && values.includes(5) && 
+                  values.includes(4) && values.includes(3) && values.includes(2);
+
+  // Recherche d'une séquence de 5 cartes
+  for (let i = 0; i <= uniqueCards.length - 5; i++) {
+    const window = uniqueCards.slice(i, i + 5);
+    if (window[0].value - window[4].value === 4) {
+
+      return window.map(w => hand.find(h => h.card === w.card)!);
+    }
+  }
+
+  // Si c'est une roue, on construit la main manuellement (5-4-3-2-A)
+  if (isWheel) {
+    const wheelRanks = ['5', '4', '3', '2', 'As'];
+    return wheelRanks.map(rank => hand.find(h => h.card === rank)!);
+  }
+
+  return null;
+}
+
+
 function mixJeuAndBoard(player: Player, board: Card[]): Card[] {
   return [...player.Jeu, ...board];
 }
@@ -249,19 +292,41 @@ describe("Texas Hold'em", () => {
     expect(result?.map(c => c.card).every(r => r === '8')).to.be.true;
   });
 
+  it("should detect a standard Ace-high straight", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: 'Roi', signe: 'CA' },
+      { card: 'Dame', signe: 'P' }, { card: 'Valet', signe: 'C' },
+      { card: '10', signe: 'T' }, { card: '2', signe: 'P' }, { card: '3', signe: 'C' }
+    ];
+    const result = getSuite(hand);
+    expect(result).to.have.lengthOf(5);
+    expect(result![0].card).to.equal('As');
+  });
+
+  it("should detect an Ace-low straight (the wheel: 5-4-3-2-A)", () => {
+    const hand: Card[] = [
+      { card: 'As', signe: 'T' }, { card: '2', signe: 'CA' },
+      { card: '3', signe: 'P' }, { card: '4', signe: 'C' },
+      { card: '5', signe: 'T' }, { card: 'Roi', signe: 'P' }, { card: '9', signe: 'C' }
+    ];
+    const result = getSuite(hand);
+    expect(result).to.have.lengthOf(5);
+    // Selon l'exigence d'ordre, la roue doit être ordonnée 5,4,3,2,A
+    expect(result![0].card).to.equal('5');
+    expect(result![4].card).to.equal('As');
+  });
+
   it("should find best hand", () => {
-    const boardBrelan: Card[] = [
-      { card: '8', signe: 'CA' }, { card: '8', signe: 'C' },
-      { card: '3', signe: 'T' }, { card: 'J', signe: 'P' }, { card: '5', signe: 'C' }
+    const boardStraight: Card[] = [
+      { card: '7', signe: 'CA' }, { card: '8', signe: 'P' },
+      { card: '9', signe: 'T' }, { card: '8', signe: 'C' }, { card: '4', signe: 'T' }
     ];
-
-    const playersBrelan: Player[] = [
-      { id: 'Double Paire Rois et As', Jeu: [{ card: 'Roi', signe: 'T' }, { card: 'As', signe: 'CA' }] },
-      { id: 'Brelan de 8', Jeu: [{ card: '8', signe: 'P' }, { card: '3', signe: 'C' }] }
+    const playersStraight: Player[] = [
+      { id: 'Brelan de 8', Jeu: [{ card: '8', signe: 'CA' }, { card: '2', signe: 'P' }] },
+      { id: 'Suite 7-Valet', Jeu: [{ card: '10', signe: 'C' }, { card: 'Valet', signe: 'P' }] }
     ];
-
-    const best = findBestHand(playersBrelan, boardBrelan);
-    expect(best?.id).to.equal('Brelan de 8');
+    const best = findBestHand(playersStraight, boardStraight);
+    expect(best?.id).to.equal('Suite 7-Valet');
   });
 });
 
