@@ -72,7 +72,7 @@ function getCardValue(card: string): number {
 
 function findBestHand(players: Player[], board: Card[]): Player | null {
   let bestPlayer: Player | null = null;
-  let bestCategoryValue = 0; // Correspond à la 'value' dans type_combinaison
+  let bestCategoryValue = 0; 
   let bestRankValue = -1;    // Valeur de la carte pour le départage
 
   for (const player of players) {
@@ -295,7 +295,10 @@ describe("Texas Hold'em", () => {
 
   it("should find the player with the best pair", () => {
     const best = findBestHand(players, board);
-    expect(best?.id).to.equal('Joueur 2');
+    expect(best).to.deep.equal([
+      { card: 'Roi', signe: 'C' }, { card: 'Roi', signe: 'P' },
+      { card: 'J', signe: 'T' }, { card: '9', signe: 'T' }, { card: '7', signe: 'CA' }
+    ]);
   });
 
   it("should return best hand with no bonus", () => {
@@ -310,7 +313,10 @@ describe("Texas Hold'em", () => {
       { card: '6', signe: 'T' }
     ];
     const best = findBestHand(noPairPlayers, emptyBoard);
-    expect(best).to.deep.equal({ id: 'P1', Jeu: [{ card: '2', signe: 'T' }, { card: '5', signe: 'C' }]});
+    expect(best).to.deep.equal([
+      { card: 'J', signe: 'T' }, { card: '9', signe: 'P' },
+      { card: '7', signe: 'CA' }, { card: '6', signe: 'T' }, { card: '5', signe: 'C' }
+    ]);
   });
   
   it("should detect two pairs from a hand of 7 cards", () => {
@@ -388,7 +394,11 @@ describe("Texas Hold'em", () => {
       { id: 'Julie', Jeu: [{ card: 'As', signe: 'T' }, { card: 'Roi', signe: 'P' }] }
     ];
     const best = findBestHand(playersCarre, boardCarre);
-    expect(best?.id).to.equal('Julie');
+    expect(best).to.deep.equal([
+      { card: 'As', signe: 'T' }, { card: 'As', signe: 'CA' },
+      { card: 'As', signe: 'C' }, { card: 'As', signe: 'P' },
+      { card: 'Roi', signe: 'P' }
+    ]);
   });
 
   it("should detect a flush (couleur)", () => {
@@ -413,7 +423,10 @@ describe("Texas Hold'em", () => {
       { id: 'Couleur Trèfle', Jeu: [{ card: 'As', signe: 'T' }, { card: '2', signe: 'P' }] }
     ];
     const best = findBestHand(playersCouleur, boardCouleur);
-    expect(best?.id).to.equal('Couleur Trèfle');
+    expect(best).to.deep.equal([
+      { card: 'As', signe: 'T' }, { card: 'J', signe: 'T' },
+      { card: '9', signe: 'T' }, { card: '7', signe: 'T' }, { card: '6', signe: 'T' }
+    ]);
   });
 
   it("should find best hand", () => {
@@ -426,7 +439,10 @@ describe("Texas Hold'em", () => {
       { id: 'Suite 7-Valet', Jeu: [{ card: '10', signe: 'C' }, { card: 'Valet', signe: 'P' }] }
     ];
     const best = findBestHand(playersStraight, boardStraight);
-    expect(best?.id).to.equal('Suite 7-Valet');
+    expect(best).to.deep.equal([
+      { card: 'Valet', signe: 'P' }, { card: '10', signe: 'C' },
+      { card: '9', signe: 'T' }, { card: '8', signe: 'P' }, { card: '7', signe: 'CA' }
+    ]);
   });
   it("should detect a Full House (3 of a kind + 2 of a kind)", () => {
     const hand: Card[] = [
